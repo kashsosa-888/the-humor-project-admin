@@ -61,7 +61,7 @@ export default async function AdminLayout({
   const adminClient = createAdminClient();
   const { data: profile } = await adminClient
     .from("profiles")
-    .select("is_superadmin, full_name, avatar_url, email")
+    .select("is_superadmin, first_name, last_name, email")
     .eq("id", user.id)
     .single();
 
@@ -70,13 +70,12 @@ export default async function AdminLayout({
   }
 
   const displayName =
-    profile?.full_name ||
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
     user.user_metadata?.full_name ||
     user.email?.split("@")[0] ||
     "Admin";
 
-  const avatarUrl =
-    profile?.avatar_url || user.user_metadata?.avatar_url;
+  const avatarUrl = user.user_metadata?.avatar_url;
 
   return (
     <div className="flex min-h-screen bg-gray-950">

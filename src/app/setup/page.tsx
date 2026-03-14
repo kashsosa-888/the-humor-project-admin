@@ -30,7 +30,7 @@ export default async function SetupPage({
   // Get current user's profile
   const { data: myProfile } = await admin
     .from("profiles")
-    .select("id, full_name, email, is_superadmin")
+    .select("id, first_name, last_name, email, is_superadmin")
     .eq("id", user.id)
     .single();
 
@@ -73,7 +73,7 @@ export default async function SetupPage({
   }
 
   const displayName =
-    myProfile?.full_name ||
+    [myProfile?.first_name, myProfile?.last_name].filter(Boolean).join(" ") ||
     user.user_metadata?.full_name ||
     user.email?.split("@")[0] ||
     "Unknown";

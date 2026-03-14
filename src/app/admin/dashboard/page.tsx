@@ -196,12 +196,12 @@ export default async function DashboardPage() {
     topVoterIds.length > 0
       ? await admin
           .from("profiles")
-          .select("id, full_name, email, avatar_url")
+          .select("id, first_name, last_name, email")
           .in("id", topVoterIds)
       : { data: [] };
 
   const topVoters = topVoterIds.map((id) => ({
-    ...(topVoterDetails?.find((p: { id: string }) => p.id === id) ?? { id, full_name: null, email: null, avatar_url: null }),
+    ...(topVoterDetails?.find((p: { id: string }) => p.id === id) ?? { id, first_name: null, last_name: null, email: null }),
     votes: voterCount.get(id) ?? 0,
   }));
   const maxVotes = topVoters[0]?.votes ?? 1;
@@ -325,28 +325,24 @@ export default async function DashboardPage() {
             {topVoters.length === 0 ? (
               <p className="text-sm text-gray-500">No votes yet</p>
             ) : (
-              topVoters.map((voter, i) => (
-                <div key={voter.id}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-4 text-xs text-gray-600">#{i + 1}</span>
-                      {voter.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={voter.avatar_url} alt="" className="h-6 w-6 rounded-full" />
-                      ) : (
+              topVoters.map((voter, i) => {
+                const name = [voter.first_name, voter.last_name].filter(Boolean).join(" ") || voter.email?.split("@")[0] || "Unknown";
+                return (
+                  <div key={voter.id}>
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-4 text-xs text-gray-600">#{i + 1}</span>
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-800 text-xs font-bold text-white">
-                          {(voter.full_name || voter.email || "?")[0].toUpperCase()}
+                          {name[0].toUpperCase()}
                         </div>
-                      )}
-                      <span className="text-sm text-gray-300">
-                        {voter.full_name || voter.email?.split("@")[0] || "Unknown"}
-                      </span>
+                        <span className="text-sm text-gray-300">{name}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{voter.votes} votes</span>
                     </div>
-                    <span className="text-xs text-gray-500">{voter.votes} votes</span>
+                    <MiniBar value={voter.votes} max={maxVotes} color="bg-amber-500" />
                   </div>
-                  <MiniBar value={voter.votes} max={maxVotes} color="bg-amber-500" />
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

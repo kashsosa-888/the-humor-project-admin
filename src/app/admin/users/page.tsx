@@ -3,10 +3,10 @@ import { createAdminClient } from "@/utils/supabase/admin";
 interface Profile {
   id: string;
   email: string | null;
-  full_name: string | null;
-  avatar_url: string | null;
+  first_name: string | null;
+  last_name: string | null;
   is_superadmin: boolean | null;
-  created_at: string | null;
+  created_datetime_utc: string | null;
 }
 
 export default async function UsersPage() {
@@ -14,8 +14,8 @@ export default async function UsersPage() {
 
   const { data: profiles, error } = await admin
     .from("profiles")
-    .select("id, email, full_name, avatar_url, is_superadmin, created_at")
-    .order("created_at", { ascending: false });
+    .select("id, email, first_name, last_name, is_superadmin, created_datetime_utc")
+    .order("created_datetime_utc", { ascending: false });
 
   if (error) {
     return (
@@ -58,59 +58,54 @@ export default async function UsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {(profiles as Profile[])?.map((profile) => (
-              <tr key={profile.id} className="transition-colors hover:bg-gray-800/30">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    {profile.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={profile.avatar_url}
-                        alt=""
-                        className="h-9 w-9 rounded-full ring-2 ring-gray-700"
-                      />
-                    ) : (
+            {(profiles as Profile[])?.map((profile) => {
+              const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || null;
+              const initial = (displayName || profile.email || "?")[0].toUpperCase();
+              return (
+                <tr key={profile.id} className="transition-colors hover:bg-gray-800/30">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-800 text-sm font-bold text-white">
-                        {(profile.full_name || profile.email || "?")[0].toUpperCase()}
+                        {initial}
                       </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-white">
-                        {profile.full_name || "—"}
-                      </p>
-                      <p className="font-mono text-xs text-gray-600">{profile.id.slice(0, 8)}…</p>
+                      <div>
+                        <p className="text-sm font-medium text-white">
+                          {displayName || "—"}
+                        </p>
+                        <p className="font-mono text-xs text-gray-600">{profile.id.slice(0, 8)}…</p>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-300">{profile.email || "—"}</td>
-                <td className="px-6 py-4">
-                  {profile.is_superadmin ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-900/50 px-2.5 py-0.5 text-xs font-medium text-violet-300 ring-1 ring-violet-700/50">
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
-                      </svg>
-                      Superadmin
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-full bg-gray-800 px-2.5 py-0.5 text-xs font-medium text-gray-400">
-                      User
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <span className="text-sm text-gray-300">{voteMap.get(profile.id) ?? 0}</span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {profile.created_at
-                    ? new Date(profile.created_at).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : "—"}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-300">{profile.email || "—"}</td>
+                  <td className="px-6 py-4">
+                    {profile.is_superadmin ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-900/50 px-2.5 py-0.5 text-xs font-medium text-violet-300 ring-1 ring-violet-700/50">
+                        <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                        </svg>
+                        Superadmin
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-gray-800 px-2.5 py-0.5 text-xs font-medium text-gray-400">
+                        User
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-300">{voteMap.get(profile.id) ?? 0}</span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {profile.created_datetime_utc
+                      ? new Date(profile.created_datetime_utc).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "—"}
+                  </td>
+                </tr>
+              );
+            })}
             {(!profiles || profiles.length === 0) && (
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
