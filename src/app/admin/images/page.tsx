@@ -4,7 +4,7 @@ import ImageManager from "./ImageManager";
 interface Image {
   id: string;
   url: string;
-  created_at: string | null;
+  created_datetime_utc: string | null;
 }
 
 interface Caption {
@@ -19,8 +19,8 @@ export default async function ImagesPage() {
 
   const { data: images, error } = await admin
     .from("images")
-    .select("id, url, created_at")
-    .order("created_at", { ascending: false });
+    .select("id, url, created_datetime_utc")
+    .order("created_datetime_utc", { ascending: false });
 
   if (error) {
     return (

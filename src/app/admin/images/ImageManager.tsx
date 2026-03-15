@@ -13,7 +13,7 @@ interface Caption {
 interface ImageWithCaptions {
   id: string;
   url: string;
-  created_at: string | null;
+  created_datetime_utc: string | null;
   captions: Caption[];
 }
 
@@ -323,9 +323,9 @@ export default function ImageManager({ images }: { images: ImageWithCaptions[] }
                 )}
                 <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
                   <span className="font-mono">{img.id.slice(0, 8)}…</span>
-                  {img.created_at && (
+                  {img.created_datetime_utc && (
                     <span>
-                      {new Date(img.created_at).toLocaleDateString("en-US", {
+                      {new Date(img.created_datetime_utc).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
