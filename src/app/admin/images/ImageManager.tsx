@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Image from "next/image";
-import { createImage, updateImage, deleteImage } from "../actions";
+import { createImage, uploadImage, updateImage, deleteImage } from "../actions";
 
 interface Caption {
   id: string;
@@ -20,30 +20,61 @@ interface ImageWithCaptions {
 export default function ImageManager({ images }: { images: ImageWithCaptions[] }) {
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
+  const [createMode, setCreateMode] = useState<"url" | "upload">("url");
   const [newUrl, setNewUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function showFeedback(type: "success" | "error", msg: string) {
     setFeedback({ type, msg });
-    setTimeout(() => setFeedback(null), 3000);
+    setTimeout(() => setFeedback(null), 3500);
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setFilePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
   }
 
   function handleCreate() {
-    if (!newUrl.trim()) return;
-    startTransition(async () => {
-      const res = await createImage(newUrl.trim());
-      if (res.error) {
-        showFeedback("error", res.error);
-      } else {
-        showFeedback("success", "Image created successfully");
-        setNewUrl("");
-        setShowCreate(false);
-      }
-    });
+    if (createMode === "url") {
+      if (!newUrl.trim()) return;
+      startTransition(async () => {
+        const res = await createImage(newUrl.trim());
+        if (res.error) {
+          showFeedback("error", res.error);
+        } else {
+          showFeedback("success", "Image created");
+          setNewUrl("");
+          setShowCreate(false);
+        }
+      });
+    } else {
+      if (!selectedFile) return;
+      startTransition(async () => {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        const res = await uploadImage(formData);
+        if (res.error) {
+          showFeedback("error", res.error);
+        } else {
+          showFeedback("success", "Image uploaded");
+          setSelectedFile(null);
+          setFilePreview(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setShowCreate(false);
+        }
+      });
+    }
   }
 
   function handleUpdate(id: string) {
@@ -60,10 +91,6 @@ export default function ImageManager({ images }: { images: ImageWithCaptions[] }
     });
   }
 
-  function handleDelete(id: string) {
-    setDeletingId(id);
-  }
-
   function confirmDelete(id: string) {
     startTransition(async () => {
       const res = await deleteImage(id);
@@ -75,6 +102,8 @@ export default function ImageManager({ images }: { images: ImageWithCaptions[] }
       setDeletingId(null);
     });
   }
+
+  const canCreate = createMode === "url" ? !!newUrl.trim() : !!selectedFile;
 
   return (
     <div className="space-y-6">
@@ -113,34 +142,101 @@ export default function ImageManager({ images }: { images: ImageWithCaptions[] }
       {/* Create form */}
       {showCreate && (
         <div className="rounded-xl border border-violet-800/50 bg-gray-900 p-5">
-          <h2 className="mb-4 text-sm font-semibold text-violet-300">New Image</h2>
-          <div className="flex gap-3">
-            <input
-              type="url"
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              placeholder="https://images.almostcrackd.ai/..."
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm text-white placeholder-gray-600 focus:border-violet-500 focus:outline-none"
-            />
-            <button
-              onClick={handleCreate}
-              disabled={isPending || !newUrl.trim()}
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
-            >
-              {isPending ? "Creating…" : "Create"}
-            </button>
-            <button
-              onClick={() => { setShowCreate(false); setNewUrl(""); }}
-              className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700"
-            >
-              Cancel
-            </button>
-          </div>
-          {newUrl && (
-            <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-lg bg-gray-800">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={newUrl} alt="Preview" className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-violet-300">New Image</h2>
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border border-gray-700 bg-gray-800 p-0.5">
+              <button
+                onClick={() => setCreateMode("url")}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  createMode === "url" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                URL
+              </button>
+              <button
+                onClick={() => setCreateMode("upload")}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  createMode === "upload" ? "bg-violet-600 text-white" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Upload File
+              </button>
             </div>
+          </div>
+
+          {createMode === "url" ? (
+            <>
+              <div className="flex gap-3">
+                <input
+                  type="url"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm text-white placeholder-gray-600 focus:border-violet-500 focus:outline-none"
+                />
+                <button
+                  onClick={handleCreate}
+                  disabled={isPending || !canCreate}
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {isPending ? "Creating…" : "Create"}
+                </button>
+                <button
+                  onClick={() => { setShowCreate(false); setNewUrl(""); }}
+                  className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+              {newUrl && (
+                <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-lg bg-gray-800">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={newUrl} alt="Preview" className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="mb-3 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-700 bg-gray-800/50 p-8 transition-colors hover:border-violet-600"
+              >
+                <svg className="mb-2 h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <p className="text-sm text-gray-400">{selectedFile ? selectedFile.name : "Click to select image"}</p>
+                {selectedFile && <p className="mt-1 text-xs text-gray-600">{(selectedFile.size / 1024).toFixed(1)} KB</p>}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              {filePreview && (
+                <div className="mb-3 relative aspect-video w-full overflow-hidden rounded-lg bg-gray-800">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={filePreview} alt="Preview" className="h-full w-full object-contain" />
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCreate}
+                  disabled={isPending || !canCreate}
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {isPending ? "Uploading…" : "Upload"}
+                </button>
+                <button
+                  onClick={() => { setShowCreate(false); setSelectedFile(null); setFilePreview(null); }}
+                  className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -260,7 +356,7 @@ export default function ImageManager({ images }: { images: ImageWithCaptions[] }
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(img.id)}
+                  onClick={() => setDeletingId(img.id)}
                   className="rounded-lg bg-red-950/40 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-900/50"
                 >
                   Delete
