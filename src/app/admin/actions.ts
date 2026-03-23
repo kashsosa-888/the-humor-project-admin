@@ -23,11 +23,11 @@ async function requireSuperadmin() {
 // --- IMAGE ACTIONS ---
 
 export async function createImage(url: string) {
-  const { admin } = await requireSuperadmin();
+  const { user, admin } = await requireSuperadmin();
 
   const { data, error } = await admin
     .from("images")
-    .insert({ url })
+    .insert({ url, created_by_user_id: user.id, modified_by_user_id: user.id })
     .select("id")
     .single();
 
@@ -37,7 +37,7 @@ export async function createImage(url: string) {
 }
 
 export async function uploadImage(formData: FormData) {
-  const { admin } = await requireSuperadmin();
+  const { user, admin } = await requireSuperadmin();
 
   const file = formData.get("file") as File;
   if (!file || file.size === 0) return { error: "No file provided" };
@@ -58,7 +58,7 @@ export async function uploadImage(formData: FormData) {
 
   const { data, error } = await admin
     .from("images")
-    .insert({ url: publicUrl })
+    .insert({ url: publicUrl, created_by_user_id: user.id, modified_by_user_id: user.id })
     .select("id")
     .single();
 
@@ -68,11 +68,11 @@ export async function uploadImage(formData: FormData) {
 }
 
 export async function updateImage(id: string, url: string) {
-  const { admin } = await requireSuperadmin();
+  const { user, admin } = await requireSuperadmin();
 
   const { error } = await admin
     .from("images")
-    .update({ url })
+    .update({ url, modified_by_user_id: user.id })
     .eq("id", id);
 
   if (error) return { error: error.message };
@@ -94,16 +94,16 @@ export async function deleteImage(id: string) {
 // --- LLM PROVIDERS ---
 
 export async function createLLMProvider(name: string) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("llm_providers").insert({ name });
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("llm_providers").insert({ name, created_by_user_id: user.id, modified_by_user_id: user.id });
   if (error) return { error: error.message };
   revalidatePath("/admin/llm-providers");
   return { success: true };
 }
 
 export async function updateLLMProvider(id: number, name: string) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("llm_providers").update({ name }).eq("id", id);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("llm_providers").update({ name, modified_by_user_id: user.id }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/llm-providers");
   revalidatePath("/admin/llm-models");
@@ -127,8 +127,8 @@ export async function createLLMModel(data: {
   llm_provider_id: number;
   is_temperature_supported: boolean;
 }) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("llm_models").insert(data);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("llm_models").insert({ ...data, created_by_user_id: user.id, modified_by_user_id: user.id });
   if (error) return { error: error.message };
   revalidatePath("/admin/llm-models");
   return { success: true };
@@ -140,8 +140,8 @@ export async function updateLLMModel(id: number, data: {
   llm_provider_id: number;
   is_temperature_supported: boolean;
 }) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("llm_models").update(data).eq("id", id);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("llm_models").update({ ...data, modified_by_user_id: user.id }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/llm-models");
   return { success: true };
@@ -158,10 +158,10 @@ export async function deleteLLMModel(id: number) {
 // --- HUMOR MIX ---
 
 export async function updateHumorMix(id: number, caption_count: number) {
-  const { admin } = await requireSuperadmin();
+  const { user, admin } = await requireSuperadmin();
   const { error } = await admin
     .from("humor_flavor_mix")
-    .update({ caption_count })
+    .update({ caption_count, modified_by_user_id: user.id })
     .eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/humor-mix");
@@ -177,8 +177,8 @@ export async function createTerm(data: {
   priority: number;
   term_type_id: number;
 }) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("terms").insert(data);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("terms").insert({ ...data, created_by_user_id: user.id, modified_by_user_id: user.id });
   if (error) return { error: error.message };
   revalidatePath("/admin/terms");
   return { success: true };
@@ -191,8 +191,8 @@ export async function updateTerm(id: number, data: {
   priority: number;
   term_type_id: number;
 }) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("terms").update(data).eq("id", id);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("terms").update({ ...data, modified_by_user_id: user.id }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/terms");
   return { success: true };
@@ -215,8 +215,8 @@ export async function createCaptionExample(data: {
   priority: number;
   image_id: string | null;
 }) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("caption_examples").insert(data);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("caption_examples").insert({ ...data, created_by_user_id: user.id, modified_by_user_id: user.id });
   if (error) return { error: error.message };
   revalidatePath("/admin/caption-examples");
   return { success: true };
@@ -229,8 +229,8 @@ export async function updateCaptionExample(id: number, data: {
   priority: number;
   image_id: string | null;
 }) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("caption_examples").update(data).eq("id", id);
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("caption_examples").update({ ...data, modified_by_user_id: user.id }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/caption-examples");
   return { success: true };
@@ -247,8 +247,8 @@ export async function deleteCaptionExample(id: number) {
 // --- ALLOWED SIGNUP DOMAINS ---
 
 export async function createSignupDomain(apex_domain: string) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("allowed_signup_domains").insert({ apex_domain });
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("allowed_signup_domains").insert({ apex_domain, created_by_user_id: user.id, modified_by_user_id: user.id });
   if (error) return { error: error.message };
   revalidatePath("/admin/signup-domains");
   return { success: true };
@@ -265,18 +265,18 @@ export async function deleteSignupDomain(id: number) {
 // --- WHITELIST EMAIL ADDRESSES ---
 
 export async function createWhitelistEmail(email_address: string) {
-  const { admin } = await requireSuperadmin();
-  const { error } = await admin.from("whitelist_email_addresses").insert({ email_address });
+  const { user, admin } = await requireSuperadmin();
+  const { error } = await admin.from("whitelist_email_addresses").insert({ email_address, created_by_user_id: user.id, modified_by_user_id: user.id });
   if (error) return { error: error.message };
   revalidatePath("/admin/whitelist-emails");
   return { success: true };
 }
 
 export async function updateWhitelistEmail(id: number, email_address: string) {
-  const { admin } = await requireSuperadmin();
+  const { user, admin } = await requireSuperadmin();
   const { error } = await admin
     .from("whitelist_email_addresses")
-    .update({ email_address })
+    .update({ email_address, modified_by_user_id: user.id })
     .eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/whitelist-emails");

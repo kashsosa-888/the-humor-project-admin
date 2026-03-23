@@ -61,7 +61,7 @@ export default async function SetupPage({
 
     const { error } = await adminClient
       .from("profiles")
-      .update({ is_superadmin: true })
+      .update({ is_superadmin: true, modified_by_user_id: currentUser.id })
       .eq("id", currentUser.id);
 
     if (error) {
