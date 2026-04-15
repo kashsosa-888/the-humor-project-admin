@@ -244,6 +244,58 @@ export async function deleteCaptionExample(id: number) {
   return { success: true };
 }
 
+// --- HUMOR FLAVORS ---
+
+export async function duplicateHumorFlavor(id: string, newSlug: string) {
+  const { admin } = await requireSuperadmin();
+
+  // Check slug uniqueness
+  const { data: existing } = await admin
+    .from("humor_flavors")
+    .select("id")
+    .eq("slug", newSlug)
+    .maybeSingle();
+  if (existing) return { error: `A humor flavor with slug "${newSlug}" already exists` };
+
+  // Fetch original flavor
+  const { data: flavor, error: flavorErr } = await admin
+    .from("humor_flavors")
+    .select("slug, description")
+    .eq("id", id)
+    .single();
+  if (flavorErr || !flavor) return { error: flavorErr?.message ?? "Flavor not found" };
+
+  // Insert new flavor
+  const { data: newFlavor, error: insertErr } = await admin
+    .from("humor_flavors")
+    .insert({ slug: newSlug, description: flavor.description })
+    .select("id")
+    .single();
+  if (insertErr || !newFlavor) return { error: insertErr?.message ?? "Failed to create flavor" };
+
+  // Fetch and copy steps
+  const { data: steps, error: stepsErr } = await admin
+    .from("humor_flavor_steps")
+    .select("order_by, description, llm_model_id, llm_temperature, llm_system_prompt, llm_user_prompt, humor_flavor_step_type_id, llm_input_type_id, llm_output_type_id")
+    .eq("humor_flavor_id", id)
+    .order("order_by", { ascending: true });
+  if (stepsErr) return { error: stepsErr.message };
+
+  if (steps && steps.length > 0) {
+    const { error: stepsInsertErr } = await admin
+      .from("humor_flavor_steps")
+      .insert(steps.map((s) => ({ ...s, humor_flavor_id: newFlavor.id })));
+    if (stepsInsertErr) {
+      await admin.from("humor_flavors").delete().eq("id", newFlavor.id);
+      return { error: stepsInsertErr.message };
+    }
+  }
+
+  revalidatePath("/admin/humor-flavors");
+  revalidatePath("/admin/humor-flavor-steps");
+  return { success: true, id: newFlavor.id };
+}
+
 // --- ALLOWED SIGNUP DOMAINS ---
 
 export async function createSignupDomain(apex_domain: string) {
